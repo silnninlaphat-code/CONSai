@@ -1714,8 +1714,32 @@ function studioOn(k){return ((state.studio||{})[k]||0)>0;}
 function studioToggle(k,el){var on=el.classList.toggle('on');if(!state.studio)state.studio={};state.studio[k]=on?100:0;persist();}
 function tog(a){var k=a[0],lab=a[1],on=studioOn(k);return `<button class="stgl ${on?'on':''}" onclick="studioToggle('${k}',this)"><span class="stgl-ic">${lic(STU_ICON[k]||'_')}</span><span class="stgl-l">${lab}</span></button>`;}
 function acc(icon,title,arr,open){return `<details class="acc"${open?' open':''}><summary><span class="acc-ic">${lic(icon)}</span>${title}</summary><div class="accbody"><div class="stgrid">${arr.map(tog).join('')}</div></div></details>`;}
-function studioGenerate(){var st=state.studio;st.analyzing=true;render('ai');toast((st.mode==='video'?'กำลังเจนวิดีโอ':'กำลังเจนภาพ')+' (เดโม)…');
-  st.upscaled=false;setTimeout(function(){st.generated=true;studioCompute();st.analyzing=false;render('ai');toast('เสร็จแล้ว ✓ — เลื่อนดูวัสดุ/ราคา/BOQ ด้านล่าง');},1200);}
+var studioImgUrl=null;
+function studioImagePrompt(){var st=state.studio||{},on=function(k){return (st[k]||0)>0;};
+  var sM={Modern:'modern',MinimalS:'minimalist',LuxuryS:'luxury',Japandi:'japandi',WabiSabi:'wabi-sabi',Brutalist:'brutalist',Organic:'organic',Futuristic:'futuristic',Classic:'classic',ThaiContemp:'thai contemporary',KoreanSoft:'soft korean',Industrial:'industrial',HotelMood:'hotel mood',Retail:'retail interior'};
+  var mM={Wood:'wood',Stone:'stone',Metal:'black metal',Glass:'glass',Fabric:'fabric',Concrete:'polished concrete',Marble:'marble',Laminate:'laminate',Mirror:'mirror'};
+  var lM={Warm:'warm 2700K lighting',Night:'night scene',Cinematic:'cinematic lighting',Indirect:'indirect cove lighting',Spotlight:'spotlights',Natural:'natural daylight'};
+  var s=[],m=[],l=[];
+  Object.keys(sM).forEach(function(k){if(on(k))s.push(sM[k]);});
+  Object.keys(mM).forEach(function(k){if(on(k))m.push(mM[k]);});
+  Object.keys(lM).forEach(function(k){if(on(k))l.push(lM[k]);});
+  var p='Photorealistic interior architecture render';
+  if(st.room)p+=' of '+st.room;
+  if(s.length)p+=', '+s.join(', ')+' style';
+  if(m.length)p+=', materials: '+m.join(', ');
+  if(l.length)p+=', '+l.join(', ');
+  p+=', highly detailed, professional architectural photography, wide angle, 4k';
+  if(st.prompt&&st.prompt.trim())p+='. Concept: '+st.prompt.trim();
+  return p;}
+async function studioGenImage(prompt){
+  var res=await fetch('/api/image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:prompt})});
+  var data=await res.json();
+  if(!res.ok||!data.image)throw new Error(data.error||('HTTP '+res.status));
+  return 'data:'+(data.mime||'image/png')+';base64,'+data.image;}
+function studioGenerate(){var st=state.studio;st.analyzing=true;st.upscaled=false;render('ai');
+  if((st.mode||'image')==='video'){studioImgUrl=null;toast('กำลังเจนวิดีโอ (เดโม)…');setTimeout(function(){st.generated=true;studioCompute();st.analyzing=false;render('ai');toast('เสร็จแล้ว ✓ — เลื่อนดูวัสดุ/ราคา/BOQ ด้านล่าง');},1200);return;}
+  toast('กำลังเจนภาพด้วย AI…');
+  studioGenImage(studioImagePrompt()).then(function(url){studioImgUrl=url;st.generated=true;studioCompute();st.analyzing=false;render('ai');toast('เจนภาพสำเร็จ ✓');}).catch(function(e){studioImgUrl=null;st.generated=true;studioCompute();st.analyzing=false;render('ai');toast('เจนภาพจริงไม่ได้ — แสดงตัวอย่างจำลอง ('+(e&&e.message||'error')+')');});}
 function studioUpscale(){var st=state.studio;if(!st||!st.generated){toast('เจนภาพก่อน');return;}if(st.upscaled){toast('เป็น 4K อยู่แล้ว');return;}st.upscaled=true;persist();render('ai');toast('อัพสเกลเป็น 4K แล้ว (เดโม) ✓');}
 function studioCompute(){var g=studioVal,area=Math.max(8,Number((state.studio||{}).area)||100);
   var lux=g('Luxury',60),prem=g('Premium',45),grade=g('MaterialGrade',50),marble=g('Marble',20),stone=g('Stone',35),finish=g('FinishQuality',50),comp=g('Complexity',40),wood=g('Wood',55),texture=g('Texture',40),indirect=g('Indirect',50),glass=g('Glass',40),budget=g('Budget',50),build=g('Buildable',75),spot=g('Spotlight',40),reduce=g('ReduceCost',40);
@@ -1768,11 +1792,12 @@ function aiDesignBody(){var st=state.studio||(state.studio={}),mode=st.mode||'im
   if(st.generated&&st.showTags&&r){tagsOverlay=`<div class="costtag" style="top:62%;left:8%;">พื้น ฿${fmt(r.items[0].matUnit)}/ตร.ม.</div><div class="costtag" style="top:24%;left:40%;">ผนัง ฿${fmt(r.items[1].matUnit)}/ตร.ม.</div><div class="costtag" style="top:74%;left:54%;">เคาน์เตอร์ ฿${fmt(boqRowCalc(r.items[4]).sell)}</div>`;}
   var center=st.analyzing
     ?`<div class="consload"><svg class="conslogo fast" viewBox="0 0 300 140"><text class="cl-cons" x="150" y="86" text-anchor="middle">CONS</text><circle class="cl-eye" cx="128" cy="62" r="5"/><ellipse class="cl-eye cl-blink" cx="158" cy="62" rx="5" ry="5"/><path class="cl-smile" d="M122 98q21.5 17 43 0"/></svg></div>`
-    :`<div style="position:relative;text-align:center;color:var(--ink-soft);font-size:13px;">${st.generated?(mode==='video'?'วิดีโอ '+(studioVal('VDuration',15))+'s'+(st.upscaled?' · 4K':'')+' (เดโม)':'ภาพที่เจน'+(st.upscaled?' · 4K':'')+' (เดโม)'):'กดปุ่มด้านล่างเพื่อเริ่มสร้าง'}</div>`;
+    :`<div style="position:relative;text-align:center;color:var(--ink-soft);font-size:13px;">${st.generated?(mode==='video'?'วิดีโอ '+(studioVal('VDuration',15))+'s'+(st.upscaled?' · 4K':'')+' (เดโม)':(studioImgUrl?'':'ภาพที่เจน'+(st.upscaled?' · 4K':'')+' (เดโม)')):'กดปุ่มด้านล่างเพื่อเริ่มสร้าง'}</div>`;
   var wm=st.generated?`${st.upscaled?'<div style="position:absolute;top:10px;left:10px;background:linear-gradient(135deg,var(--pink-hi),var(--pink));color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:8px;letter-spacing:.5px;box-shadow:0 4px 12px var(--pink-glow);">4K</div>':''}<div class="genwm">${logoHTML()}</div>`:'';
   var preview=`<div class="np-in" style="aspect-ratio:3/2;border-radius:var(--r-md);display:grid;place-items:center;margin-bottom:10px;overflow:hidden;position:relative;">
      <div style="position:absolute;inset:0;background:${st.generated?'linear-gradient(135deg,#ffd6ea,#ffe9d6 40%,#e7ecff)':'linear-gradient(135deg,var(--bg),var(--surface))'};"></div>
      ${st.ref&&!st.generated&&!st.analyzing?`<div style="position:absolute;inset:0;background-image:url('${st.ref}');background-size:cover;background-position:center;opacity:.5;"></div>`:''}
+     ${studioImgUrl&&!st.analyzing&&mode==='image'?`<img src="${studioImgUrl}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">`:''}
      ${center}${tagsOverlay}${wm}</div>`;
   var genInner=st.analyzing?'<span class="btnspin"></span>':lic('sparkle');
   var genRow=`<div style="display:flex;gap:9px;margin-bottom:14px;"><button class="btn primary iconly" title="${mode==='video'?'เจนวิดีโอ':'เจนภาพ'}" onclick="studioGenerate()">${genInner}</button>${refIcon}${st.generated?`<button class="chip iconly ${st.upscaled?'on':''}" title="อัพสเกลเป็น 4K" onclick="studioUpscale()">${lic('upscale')}</button><button class="chip iconly ${st.showTags?'on':''}" title="ป้ายราคา" onclick="toggleStudioTags()">${lic('tag')}</button>`:''}</div>`;

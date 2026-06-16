@@ -1,38 +1,43 @@
-CONS — เว็บ + AI จริง (Google Gemini)  ·  วิธีขึ้นเว็บ
-======================================================
+CONS — เว็บ + AI จริง (Google Gemini)  ·  แชตตอบจริง + เจนรูปจริง
+==================================================================
 
 โครงไฟล์
-  index.html        = หน้าเว็บแอป (ช่องแชต AI เรียก /api/chat)
-  api/chat.js       = หลังบ้าน เรียก Google Gemini (เก็บคีย์ปลอดภัย)
+  index.html        = หน้าเว็บแอป
+  api/chat.js       = หลังบ้าน แชต AI (Gemini text)
+  api/image.js      = หลังบ้าน เจนรูป (Gemini 2.5 Flash Image / Nano Banana)
   package.json      = ไฟล์โปรเจกต์
+
+ทั้ง "แชต" และ "เจนรูป" ใช้คีย์ตัวเดียวกัน = GOOGLE_API_KEY
 
 ──────────────────────────────────────
 ขั้น 1) เอาคีย์ Gemini (ฟรี)
-  - ไปที่  https://aistudio.google.com
-  - กด "Get API key" → Create API key → คัดลอกคีย์เก็บไว้
+  - ไปที่  https://aistudio.google.com  →  "Get API key"  →  Create API key  →  คัดลอกเก็บไว้
+  - เจนรูป (gemini-2.5-flash-image) มี free tier ~500 รูป/วัน  ไม่ต้องใส่บัตรเครดิต
 
 ขั้น 2) ขึ้น Vercel
   วิธี A (ไม่ต้องใช้ terminal) — แนะนำ
-    1. แตกไฟล์ zip นี้
-    2. ไป github.com → New repository → Upload files → ลากทุกไฟล์/โฟลเดอร์เข้าไป → Commit
-    3. ไป vercel.com → Add New… → Project → Import โปรเจกต์ GitHub อันนี้ → Deploy
+    1. แตกไฟล์ zip
+    2. github.com → New repository → Upload files → ลากทุกไฟล์/โฟลเดอร์เข้าไป → Commit
+    3. vercel.com → Add New… → Project → Import repo นี้ → Deploy
   วิธี B (terminal)
-    1. ติดตั้ง:  npm i -g vercel
-    2. แตก zip แล้ว:  cd cons-web
-    3. รัน:  vercel   (ตอบตามคำถาม จะได้ลิงก์)
+    1. npm i -g vercel
+    2. cd cons-web
+    3. vercel   (ตอบตามคำถาม จะได้ลิงก์)
 
 ขั้น 3) ใส่คีย์ใน Vercel
   - Vercel → โปรเจกต์ → Settings → Environment Variables
   - เพิ่ม:  Name = GOOGLE_API_KEY   Value = (คีย์จาก AI Studio)
-  - กด Save แล้ว Redeploy  (เมนู Deployments → ปุ่ม … → Redeploy)
+  - Save → Redeploy (Deployments → … → Redeploy)
 
-ขั้น 4) ลองใช้
-  - เปิดลิงก์เว็บ → พิมพ์ในช่อง "ถาม AI ผู้ช่วย" ด้านล่าง → Gemini ตอบจริง
+ขั้น 4) ลองใช้บนเว็บที่ deploy แล้ว
+  - แชต: พิมพ์ในช่อง "ถาม AI ผู้ช่วย" ด้านล่าง → Gemini ตอบจริง
+  - เจนรูป: ไป AI Studio → แท็บดินสอ (AI Design) → เลือกห้อง/สไตล์/พิมพ์คอนเซปต์ → กดปุ่มเจน → ได้รูปจริง
 
 ──────────────────────────────────────
-ข้อควรระวัง
-  • /api/chat เปิดสาธารณะ (ยังไม่มีระบบล็อกอิน) ใครรู้ลิงก์ก็ยิงใช้ได้
-    → ตั้ง quota/งบใน Google Cloud และอย่าปล่อยลิงก์กว้าง จนกว่าจะใส่ระบบสมาชิก (ขั้นต่อไป)
-  • Free tier มีลิมิตจำนวนครั้งต่อนาที ถ้าเกินจะ error ชั่วคราว
-  • AI อื่น (เจนภาพ/วิดีโอ/เรนเดอร์/SketchUp) ยังเป็นการจำลอง
-    → อยากเจนภาพจริงด้วย Google ใช้ Imagen/Veo ได้ บอกมาเดี๋ยวต่อให้
+ข้อควรรู้
+  • /api/chat และ /api/image เปิดสาธารณะ (ยังไม่มีล็อกอิน) ใครรู้ลิงก์ก็ยิงใช้คีย์เราได้
+    → ตั้ง quota/งบใน Google AI Studio/Cloud และอย่าปล่อยลิงก์กว้าง จนกว่าจะใส่ระบบสมาชิก (ขั้นต่อไป)
+  • Free tier มีลิมิตต่อนาที/ต่อวัน เกินแล้ว error ชั่วคราว
+  • เจนรูปได้ผลดีสุดเมื่อพิมพ์คอนเซปต์เป็นภาษาอังกฤษ (ระบบสร้าง prompt อังกฤษให้อัตโนมัติจากสไตล์ที่เลือก)
+  • วิดีโอ + โมเดล 3D (SketchUp) ยังเป็นการจำลอง — วิดีโอ (Veo) ต่อได้แต่ช้า/เสียเงิน, 3D ยังไม่มี API ลัด
+  • ถ้าเปิดไฟล์ index.html ในเครื่องเฉย ๆ (ไม่ผ่าน Vercel) แชต/เจนรูปจะตกไปโหมดจำลอง เพราะไม่มีหลังบ้าน
